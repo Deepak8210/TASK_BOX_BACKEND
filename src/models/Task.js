@@ -32,6 +32,15 @@ const taskSchema = new Schema(
       enum: ["not started", "in progress", "completed"],
       default: "not started",
     },
+    tagIds: {
+      type: [Schema.Types.ObjectId],
+      ref: "Tag",
+      default: [],
+    },
+    isDeleted: {
+      type: Boolean,
+      default: false,
+    },
   },
   {
     timestamps: true,
