@@ -95,18 +95,27 @@ const getTaskDetailController = async (req, res) => {
 
 const updateTaskController = async (req, res) => {
   try {
-    const { id } = req.params;
-    const { tags, ...payload } = req.body;
+    const { ids, updates } = req.body;
 
-    if (!mongoose.Types.ObjectId.isValid(id)) {
+    if (!Array.isArray(ids) || ids.length === 0) {
       return res.status(400).json({
         status: "error",
-        message: "Invalid task ID",
+        message: "Task ids are required",
       });
     }
 
+    const invalidId = ids.find((id) => !mongoose.Types.ObjectId.isValid(id));
+    if (invalidId) {
+      return res.status(400).json({
+        status: "error",
+        message: "One or more task IDs are invalid",
+      });
+    }
+
+    const { tags, ...payload } = updates || {};
     let tagIds;
 
+    /* ---------- TAG HANDLING ---------- */
     if (Array.isArray(tags)) {
       const slugs = [...new Set(tags.map(normalizeTag))];
 
@@ -114,7 +123,9 @@ const updateTaskController = async (req, res) => {
         slug: { $in: slugs },
       });
 
-      const existingSlugMap = new Map(existingTags.map((t) => [t.slug, t]));
+      const existingSlugMap = new Map(
+        existingTags.map((tag) => [tag.slug, tag])
+      );
 
       const newTags = slugs
         .filter((slug) => !existingSlugMap.has(slug))
@@ -127,9 +138,7 @@ const updateTaskController = async (req, res) => {
       let createdTags = [];
       if (newTags.length) {
         try {
-          createdTags = await Tag.insertMany(newTags, {
-            ordered: false,
-          });
+          createdTags = await Tag.insertMany(newTags, { ordered: false });
         } catch (err) {
           if (err.code !== 11000) throw err;
         }
@@ -139,29 +148,35 @@ const updateTaskController = async (req, res) => {
       tagIds = allTags.map((t) => t._id);
     }
 
-    const updatedTask = await Task.findByIdAndUpdate(
-      id,
-      {
-        ...payload,
-        ...(tagIds ? { tagIds } : {}),
-      },
-      { new: true }
+    /* ---------- UPDATE ---------- */
+    const updateDoc = {
+      ...payload,
+      ...(tagIds ? { tagIds } : {}),
+    };
+
+    const result = await Task.updateMany(
+      { _id: { $in: ids } },
+      { $set: updateDoc }
     );
 
-    if (!updatedTask) {
+    if (result.matchedCount === 0) {
       return res.status(404).json({
         status: "error",
-        message: "Task not found",
+        message: "No tasks found",
       });
     }
 
+    const updatedTasks = await Task.find({
+      _id: { $in: ids },
+    });
+
     return res.status(200).json({
       status: "success",
-      data: updatedTask,
-      message: "Task updated successfully",
+      data: updatedTasks,
+      message: "Task(s) updated successfully",
     });
   } catch (error) {
-    console.error("Error updating task:", error);
+    console.error("Error updating task(s):", error);
 
     return res.status(500).json({
       status: "error",
@@ -170,35 +185,41 @@ const updateTaskController = async (req, res) => {
   }
 };
 
-const deleteTaskController = async (req, res) => {
+const deleteTasksController = async (req, res) => {
   try {
-    const { id } = req.params;
+    const { ids } = req.body;
 
-    if (!mongoose.Types.ObjectId.isValid(id)) {
+    if (!Array.isArray(ids) || ids.length === 0) {
       return res.status(400).json({
         status: "error",
-        message: "Invalid task ID",
+        message: "Task IDs array is required",
       });
     }
 
-    const task = await Task.findById(id);
-    if (!task) {
-      return res.status(404).json({
+    const validIds = ids.filter((id) => mongoose.Types.ObjectId.isValid(id));
+
+    if (validIds.length === 0) {
+      return res.status(400).json({
         status: "error",
-        message: "Task not found",
+        message: "No valid task IDs provided",
       });
     }
 
-    await SubTask.deleteMany({ taskId: id });
+    await SubTask.deleteMany({
+      taskId: { $in: validIds },
+    });
 
-    await Task.findByIdAndDelete(id);
+    const result = await Task.deleteMany({
+      _id: { $in: validIds },
+    });
 
     return res.status(200).json({
       status: "success",
-      message: "Task and associated subtasks deleted successfully",
+      message: "Tasks and associated subtasks deleted successfully",
+      deletedCount: result.deletedCount,
     });
   } catch (error) {
-    console.error("Error deleting task:", error);
+    console.error("Error deleting tasks:", error);
     return res.status(500).json({
       status: "error",
       message: error.message || "Internal server error",
@@ -211,5 +232,5 @@ module.exports = {
   getTaskController,
   getTaskDetailController,
   updateTaskController,
-  deleteTaskController,
+  deleteTasksController,
 };

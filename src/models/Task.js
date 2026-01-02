@@ -41,6 +41,10 @@ const taskSchema = new Schema(
       type: Boolean,
       default: false,
     },
+    deletedDate: {
+      type: Date,
+      default: null,
+    },
   },
   {
     timestamps: true,

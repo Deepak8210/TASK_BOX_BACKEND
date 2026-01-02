@@ -4,7 +4,7 @@ const {
   getTaskController,
   getTaskDetailController,
   updateTaskController,
-  deleteTaskController,
+  deleteTasksController,
 } = require("../controllers/task.controller");
 const {
   newSubtaskController,
@@ -21,8 +21,8 @@ router.get("/", (req, res) => {
 router.post("/tasks", newTaskController);
 router.get("/tasks", getTaskController);
 router.get("/tasks/:id", getTaskDetailController);
-router.put("/tasks/:id", updateTaskController);
-router.delete("/tasks/:id", deleteTaskController);
+router.put("/tasks", updateTaskController);
+router.delete("/tasks", deleteTasksController);
 router.post("/tasks/:taskId/subtasks", newSubtaskController);
 router.get("/tasks/:taskId/subtasks", getSubtasksController);
 router.patch("/tasks/:taskId/subtasks/:subtaskId", updateSubtaskController);
