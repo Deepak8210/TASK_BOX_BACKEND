@@ -1,5 +1,31 @@
 const { Schema, model } = require("mongoose");
 
+const attachmentSchema = new Schema(
+  {
+    url: {
+      type: String,
+      required: true,
+    },
+    name: {
+      type: String,
+      required: true,
+    },
+    type: {
+      type: String,
+      required: true,
+    },
+    size: {
+      type: Number,
+      required: true,
+    },
+    uploadedAt: {
+      type: Date,
+      default: Date.now,
+    },
+  },
+  { _id: true }
+);
+
 const taskSchema = new Schema(
   {
     taskTitle: {
@@ -35,6 +61,10 @@ const taskSchema = new Schema(
     tagIds: {
       type: [Schema.Types.ObjectId],
       ref: "Tag",
+      default: [],
+    },
+    attachments: {
+      type: [attachmentSchema],
       default: [],
     },
     isDeleted: {
